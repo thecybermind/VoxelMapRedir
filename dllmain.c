@@ -1,4 +1,3 @@
-// dllmain.cpp : Defines the entry point for the DLL application.
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -22,48 +21,12 @@ typedef LONG NTSTATUS;
 #undef MessageBox
 #define MessageBox(a,b,c,d) /* */
 
-typedef NTSTATUS(*pfnNtCreateFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PVOID, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
-pfnNtCreateFile pNtCreateFile_Trampoline = NULL;
-pfnNtCreateFile pNtCreateFile_orig = NULL;
-NTSTATUS Detour_NtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PVOID IoStatusBlock, PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength) {
-	wchar_t buf[1024];
-	//wcsncpy(buf, ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length);
-	wchar_t* lpFileName = ObjectAttributes->ObjectName->Buffer;
-	int len = ObjectAttributes->ObjectName->Length;
-
-	//if (wcsstr(lpFileName, L"mamiyaotaru") && wcscmp(lpFileName + len - wcslen(L".points"), L".points") == 0) {
-	if (wcsstr(lpFileName, L"points")) {
-		MessageBox(NULL, lpFileName, L"VoxelMapRedir: NtCreateFile", MB_OK);
-	}
-
-	return pNtCreateFile_Trampoline(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, AllocationSize, FileAttributes, ShareAccess, CreateDisposition, CreateOptions, EaBuffer, EaLength);
-}
-
-
-typedef NTSTATUS(*pfnNtOpenFile)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PVOID, ULONG, ULONG);
-pfnNtOpenFile pNtOpenFile_Trampoline = NULL;
-pfnNtOpenFile pNtOpenFile_orig = NULL;
-NTSTATUS Detour_NtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PVOID IoStatusBlock, ULONG ShareAccess, ULONG OpenOptions) {
-	wchar_t buf[1024];
-	//wcsncpy(buf, ObjectAttributes->ObjectName->Buffer, ObjectAttributes->ObjectName->Length);
-	wchar_t* lpFileName = ObjectAttributes->ObjectName->Buffer;
-	int len = ObjectAttributes->ObjectName->Length;
-
-	//if (wcsstr(lpFileName, L"mamiyaotaru") && wcscmp(lpFileName + len - wcslen(L".points"), L".points") == 0) {
-	if (wcsstr(lpFileName, L"points")) {
-		MessageBox(NULL, lpFileName, L"VoxelMapRedir: NtOpenFile", MB_OK);
-	}
-
-	return pNtOpenFile_Trampoline(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, ShareAccess, OpenOptions);
-}
-
-
 typedef BOOL(WINAPI *pfnGetFileAttributesExW)(LPCWSTR, GET_FILEEX_INFO_LEVELS, LPVOID);
 pfnGetFileAttributesExW pGetFileAttributesExW_Trampoline = NULL;
 pfnGetFileAttributesExW pGetFileAttributesExW_orig = NULL;
 BOOL Detour_GetFileAttributesExW(LPCWSTR lpFileName, GET_FILEEX_INFO_LEVELS fInfoLevelId, LPVOID lpFileInformation) {
-	int len = wcslen(lpFileName);
-	wchar_t newFileName[MAX_PATH] = L"C:\\path\\to\\mods\\mamiyaotaru\\voxelmap\\realm.";
+	int len = (int)wcslen(lpFileName);
+	wchar_t newFileName[MAX_PATH] = L"C:\\Minecraft\\Curse\\Instances\\Minecraft\\mods\\mamiyaotaru\\voxelmap\\realm.";
 
 	//waypoint file
 	if (wcsstr(lpFileName, L"mamiyaotaru") && wcscmp(lpFileName + len - wcslen(L".points"), L".points") == 0) {
@@ -123,8 +86,6 @@ BOOL Detour_GetFileAttributesExW(LPCWSTR lpFileName, GET_FILEEX_INFO_LEVELS fInf
 			MessageBox(NULL, lpFileName, L"VoxelMapRedir", MB_OK);
 		}
 	};
-
-orig:
 
 	return pGetFileAttributesExW_Trampoline(lpFileName, fInfoLevelId, lpFileInformation);
 }
@@ -134,8 +95,8 @@ typedef HANDLE(WINAPI *pfnCreateFileW)(LPCWSTR, DWORD, DWORD, LPSECURITY_ATTRIBU
 pfnCreateFileW pCreateFileW_Trampoline = NULL;
 pfnCreateFileW pCreateFileW_orig = NULL;
 HANDLE Detour_CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile) {
-	int len = wcslen(lpFileName);
-	wchar_t newFileName[MAX_PATH] = L"C:\\path\\to\\mods\\mamiyaotaru\\voxelmap\\realm.";
+	int len = (int)wcslen(lpFileName);
+	wchar_t newFileName[MAX_PATH] = L"C:\\Minecraft\\Curse\\Instances\\Minecraft\\mods\\mamiyaotaru\\voxelmap\\realm.";
 
 	//waypoint file
 	if (wcsstr(lpFileName, L"mamiyaotaru") && wcscmp(lpFileName + len - wcslen(L".points"), L".points") == 0) {
@@ -196,8 +157,6 @@ HANDLE Detour_CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwSha
 		}
 	};
 
-orig:
-	
 	return pCreateFileW_Trampoline(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
 }
 
@@ -210,17 +169,22 @@ struct {
 	char* dll;
 	char* func;
 } hooks[] = {
-	//{ pNtCreateFile_orig, Detour_NtCreateFile, reinterpret_cast<LPVOID*>(&pNtCreateFile_Trampoline), "ntdll.dll", "NtCreateFile" },
-	//{ pNtOpenFile_orig, Detour_NtOpenFile, reinterpret_cast<LPVOID*>(&pNtOpenFile_Trampoline), "ntdll.dll", "NtOpenFile" },
-	{ pCreateFileW_orig, &Detour_CreateFileW, reinterpret_cast<LPVOID*>(&pCreateFileW_Trampoline), "kernel32.dll", "CreateFileW" },
-	{ pGetFileAttributesExW_orig, &Detour_GetFileAttributesExW, reinterpret_cast<LPVOID*>(&pGetFileAttributesExW_Trampoline), "kernelbase.dll", "GetFileAttributesExW" },
+	//{ pNtCreateFile_orig, &Detour_NtCreateFile, (LPVOID*)(&pNtCreateFile_Trampoline), "ntdll.dll", "NtCreateFile" },
+	//{ pNtOpenFile_orig, &Detour_NtOpenFile, (LPVOID*)(&pNtOpenFile_Trampoline), "ntdll.dll", "NtOpenFile" },
+	{ NULL, &Detour_CreateFileW, (LPVOID*)(&pCreateFileW_Trampoline), "kernel32.dll", "CreateFileW" },
+	{ NULL, &Detour_GetFileAttributesExW, (LPVOID*)(&pGetFileAttributesExW_Trampoline), "kernelbase.dll", "GetFileAttributesExW" },
 };
 const int numhooks = (sizeof(hooks) / sizeof(*hooks));
 
 DWORD WINAPI ThreadFunc(LPVOID lpParam) {
 	//find original function pointers
 	for (int i = 0; i < numhooks; i++) {
-		hooks[i].pTarget = (decltype(hooks[i].pTarget))GetProcAddress(LoadLibraryA(hooks[i].dll), hooks[i].func);
+		HMODULE dll = LoadLibraryA(hooks[i].dll);
+		if (!dll) {
+			MessageBoxA(NULL, hooks[i].dll, "VoxelMapRedir: could not load dll", MB_OK);
+			return 0;
+		}
+		hooks[i].pTarget = (LPVOID)GetProcAddress(dll, hooks[i].func);
 		if (!hooks[i].pTarget) {
 			MessageBoxA(NULL, hooks[i].func, "VoxelMapRedir: could not find func", MB_OK);
 			return 0;

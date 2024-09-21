@@ -26,21 +26,21 @@ void ErrorMsg(DWORD dw)
 
 DWORD FindProcess(LPWSTR exeName) {
 	DWORD pid = 0;
-	auto hSnapshot = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS | TH32CS_SNAPTHREAD, 0);
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS | TH32CS_SNAPTHREAD, 0);
 	if (hSnapshot == INVALID_HANDLE_VALUE)
-		return false;
+		return 0;
 
 	PROCESSENTRY32 pe = { sizeof(pe) };
-	if (::Process32First(hSnapshot, &pe)) {
+	if (Process32First(hSnapshot, &pe)) {
 		do {
 			if (_wcsicmp(pe.szExeFile, exeName) == 0) {
 				pid = pe.th32ProcessID;
 				break;
 			}
-		} while (::Process32Next(hSnapshot, &pe));
+		} while (Process32Next(hSnapshot, &pe));
 	}
 
-	::CloseHandle(hSnapshot);
+	CloseHandle(hSnapshot);
 	return pid;
 }
 
@@ -98,7 +98,7 @@ int DoInject(LPWSTR process, char* inject) {
 int main() {
 	while (1) {
 		printf("Scanning...\n");
-		while (!DoInject(L"javaw.exe", "C:\\path\\to\\VoxelMapRedirDLL.dll")) {
+		while (!DoInject(L"javaw.exe", "C:\\Minecraft\\Curse\\Instances\\Minecraft\\VoxelMapRedirDLL.dll")) {
 			Sleep(1000);
 		}
 		printf("Finished\n");
